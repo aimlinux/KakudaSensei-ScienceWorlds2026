@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Blocklyのワークスペースを注入 (inject)
     const workspace = Blockly.inject(blocklyArea, {
-        toolbox: document.getElementById('toolbox'),
         scrollbars: true,
         trashcan: true,
         move: {
@@ -32,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Blockly.Blocks['when_run'] = {
         init: function() {
             this.appendDummyInput()
-                .appendField("🚩 が押されたとき");
+                .appendField("🚩 が おされたとき");
             this.setNextStatement(true, null);
             this.setColour(60);
         }
@@ -43,21 +42,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     Blockly.Blocks['move_forward'] = {
         init: function() {
-            this.appendDummyInput().appendField("前にすすむ");
+            this.appendValueInput("DISTANCE")
+                .setCheck("Number")
+                .appendField("まえに すすむ");
             this.setPreviousStatement(true, null);
             this.setNextStatement(true, null);
             this.setColour(20);
         }
     };
     javascriptGenerator.forBlock['move_forward'] = function(block, generator) {
-        return 'await game.moveForward();\n';
+        const distance = generator.valueToCode(block, 'DISTANCE', javascriptGenerator.ORDER_ATOMIC) || '50';
+        return `await game.moveForward(${distance});\n`;
     };
 
     Blockly.Blocks['jump'] = {
         init: function() {
             this.appendValueInput("HEIGHT")
                 .setCheck("Number")
-                .appendField("ジャンプ！ 高さ:");
+                .appendField("ジャンプ！ たかさ:");
             this.setPreviousStatement(true, null);
             this.setNextStatement(true, null);
             this.setColour(20);
@@ -74,9 +76,57 @@ document.addEventListener('DOMContentLoaded', () => {
         isJumping: false,
         jumpHeight: 0,
         isGameOver: false,
-        rockX: 300,
         goalX: 550,
+        currentStage: 1,
+
+        stages: {
+            1: {
+                label: 'ステージ 1: いわを ジャンプ！',
+                obstacles: [
+                    { type: 'stone', x: 300, width: 30, emoji: '🪨' }
+                ]
+            },
+            2: {
+                label: 'ステージ 2: いわが ２つ！',
+                obstacles: [
+                    { type: 'stone', x: 200, width: 30, emoji: '🪨' },
+                    { type: 'stone', x: 400, width: 30, emoji: '🪨' }
+                ]
+            },
+            3: {
+                label: 'ステージ 3: おおきな たに！',
+                obstacles: [
+                    { type: 'hole', x: 250, width: 120, emoji: '' }
+                ]
+            }
+        },
         
+        loadStage: function(level) {
+            this.currentStage = level;
+            const stageData = this.stages[level];
+            const labelEl = document.getElementById('current-stage-label');
+            if (labelEl) labelEl.textContent = stageData.label;
+
+            const container = document.getElementById('obstacles-container');
+            if (container) {
+                container.innerHTML = '';
+                stageData.obstacles.forEach(obs => {
+                    const div = document.createElement('div');
+                    if (obs.type === 'stone') {
+                        div.className = 'obstacle stone';
+                        div.innerHTML = obs.emoji;
+                        div.style.left = `${obs.x}px`;
+                    } else if (obs.type === 'hole') {
+                        div.className = 'obstacle hole';
+                        div.style.left = `${obs.x}px`;
+                        div.style.width = `${obs.width}px`;
+                    }
+                    container.appendChild(div);
+                });
+            }
+            this.reset();
+        },
+
         reset: function() {
             this.playerX = 20;
             this.isJumping = false;
@@ -85,7 +135,9 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateUI();
             const logEl = document.getElementById('ai-log');
             if (logEl) logEl.innerHTML = '';
-            this.log('Game Reset. Ready!');
+            const clearMsg = document.getElementById('clear-message');
+            if (clearMsg) clearMsg.classList.remove('show');
+            this.log(`AI: じゅんびOK！ (${this.stages[this.currentStage].label})`);
             this.updateBubble('どうすればいいかな？');
         },
 
@@ -93,12 +145,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const playerEl = document.getElementById('player');
             if (playerEl) {
                 playerEl.style.left = this.playerX + 'px';
-                playerEl.style.bottom = (this.isJumping ? this.jumpHeight + 'px' : '0px');
                 
-                if (this.isGameOver) {
-                    playerEl.textContent = '💥';
+                let reason = '';
+                if (this.isGameOver && this.playerX < this.goalX) {
+                    const playerCenter = this.playerX + 20;
+                    const stageData = this.stages[this.currentStage];
+                    const fallingHole = stageData.obstacles.find(o => o.type === 'hole' && playerCenter >= o.x && playerCenter <= o.x + o.width);
+                    if (fallingHole) {
+                        reason = 'hole';
+                    } else {
+                        reason = 'rock';
+                    }
+                }
+
+                if (reason === 'hole') {
+                    playerEl.style.bottom = '-40px';
+                    playerEl.textContent = '🙀';
                 } else {
-                    playerEl.textContent = '🏃';
+                    playerEl.style.bottom = (this.isJumping ? this.jumpHeight + 'px' : '0px');
+                    if (reason === 'rock') {
+                        playerEl.textContent = '💥';
+                    } else if (this.isGameOver && this.playerX >= this.goalX) {
+                        playerEl.textContent = '🙌';
+                    } else {
+                        playerEl.textContent = '🏃';
+                    }
                 }
             }
         },
@@ -121,33 +192,37 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
-        moveForward: async function() {
+        moveForward: async function(distance_arg) {
             if (this.isGameOver) return;
-            this.updateBubble('進むよ！');
-            this.log('AI: 前に進むことを決定。');
-            for (let i = 0; i < 10; i++) {
-                this.playerX += 5;
+            const dist = parseInt(distance_arg) || 50;
+            this.updateBubble(`すすむよ！(${dist})`);
+            this.log(`AI: まえに ${dist} すすむよ！`);
+            
+            const steps = Math.max(1, Math.floor(dist / 5));
+            const stepDist = dist / steps;
+
+            for (let i = 0; i < steps; i++) {
+                this.playerX += stepDist;
                 this.checkCollision();
                 this.updateUI();
                 await new Promise(r => setTimeout(r, 50));
                 if (this.isGameOver) break;
             }
-            if (!this.isGameOver) this.log('AI: 移動完了。');
+            if (!this.isGameOver) this.log('AI: いどう おわり。');
         },
 
         jump: async function(height) {
             if (this.isGameOver) return;
             const h = parseInt(height) || 80;
-            this.updateBubble(`ジャンプ！(高さ:${h})`);
-            this.log(`AI: 高さ ${h} でジャンプを試みます。`);
+            this.updateBubble(`ジャンプ！(たかさ:${h})`);
+            this.log(`AI: たかさ ${h} で ジャンプするよ！`);
             this.isJumping = true;
             this.jumpHeight = h;
             this.updateUI();
             
             // ジャンプ中の移動
             for (let i = 0; i < 10; i++) {
-                this.playerX += 5;
-                // 石の上（300px付近）を通過するときに高さが足りるか判定
+                this.playerX += 15;
                 this.checkCollision(h);
                 this.updateUI();
                 await new Promise(r => setTimeout(r, 50));
@@ -157,28 +232,48 @@ document.addEventListener('DOMContentLoaded', () => {
             this.isJumping = false;
             this.jumpHeight = 0;
             this.updateUI();
-            if (!this.isGameOver) this.log('AI: 着地成功。');
+            if (!this.isGameOver) this.log('AI: ちゃくち せいこう！');
         },
 
         checkCollision: function(currentJumpHeight = 0) {
-            // 岩との判定 (岩の高さは 50)
-            if (Math.abs(this.playerX - this.rockX) < 30) {
-                // ジャンプ中であっても、高さが50未満なら激突
-                if (!this.isJumping || currentJumpHeight < 50) {
-                    this.isGameOver = true;
-                    if (this.isJumping) {
-                        this.log(`AI: 高さ ${currentJumpHeight} では足りなかった！石に激突！`);
-                    } else {
-                        this.log('AI: ジャンプし忘れて、石に当たっちゃった！');
+            const playerCenter = this.playerX + 20;
+            const stageData = this.stages[this.currentStage];
+
+            for (const obs of stageData.obstacles) {
+                if (obs.type === 'stone') {
+                    if (Math.abs(this.playerX - obs.x) < 30) {
+                        if (!this.isJumping || currentJumpHeight < 50) {
+                            this.isGameOver = true;
+                            if (this.isJumping) {
+                                this.log(`AI: たかさ ${currentJumpHeight} では たりない！ いわに ぶつかった！`);
+                            } else {
+                                this.log('AI: ジャンプしないで、いわに ぶつかった！');
+                            }
+                            this.updateBubble('ギャアアア！');
+                            return;
+                        }
                     }
-                    this.updateBubble('ギャアアア！');
+                } else if (obs.type === 'hole') {
+                    if (playerCenter >= obs.x && playerCenter <= obs.x + obs.width) {
+                        if (!this.isJumping || currentJumpHeight <= 0) {
+                            this.isGameOver = true;
+                            this.log('AI: たにに おちちゃった！ もっと とおくへ ジャンプしよう！');
+                            this.updateBubble('ギャアアア！');
+                            return;
+                        }
+                    }
                 }
             }
+
             // ゴール判定
-            if (this.playerX >= this.goalX) {
-                this.log('AI: ゴール！大成功だね！');
+            if (this.playerX >= this.goalX && !this.isGameOver) {
+                this.log('AI: ゴール！だいせいこうだね！');
                 this.updateBubble('やったね！');
                 this.isGameOver = true; 
+                const clearMsg = document.getElementById('clear-message');
+                if (clearMsg) {
+                    clearMsg.classList.add('show');
+                }
             }
         }
     };
@@ -191,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (this.isOperating) return;
             this.isOperating = true;
             
-            game.log(`User: "${input}"`);
+            game.log(`あなた: "${input}"`);
             game.updateBubble('なるほど、まかせて！');
             await new Promise(r => setTimeout(r, 1000));
 
@@ -202,43 +297,57 @@ document.addEventListener('DOMContentLoaded', () => {
             const userHeight = match ? parseInt(match[0]) : null;
 
             let blocksToAdd = [];
-            if (userHeight !== null) {
-                game.log(`AI: 高さ ${userHeight} を理解しました。指示通りに組んでみます。`);
-                blocksToAdd = [
-                    { type: 'move_forward' },
-                    { type: 'move_forward' },
-                    { type: 'move_forward' },
-                    { type: 'move_forward' },
-                    { type: 'move_forward' },
-                    { type: 'jump', value: userHeight },
-                    { type: 'move_forward' },
-                    { type: 'move_forward' }
-                ];
-            } else if (input.includes('近く') || input.includes('具体')) {
-                game.log('AI: タイミングは分かったけど高さは...適当に80にしておくね！信号なしだと失敗しちゃうかも。');
-                blocksToAdd = [
-                    { type: 'move_forward' },
-                    { type: 'move_forward' },
-                    { type: 'move_forward' },
-                    { type: 'move_forward' },
-                    { type: 'move_forward' },
-                    { type: 'jump', value: 80 },
-                    { type: 'move_forward' },
-                    { type: 'move_forward' }
-                ];
-            } else {
-                game.log('AI: よくわからないけど、とりあえず低めに飛んでみるね！');
-                blocksToAdd = [
-                    { type: 'move_forward' },
-                    { type: 'move_forward' },
-                    { type: 'jump', value: 30 }, // あえて失敗させる例
-                    { type: 'move_forward' }
-                ];
+            const isGoodPrompt = userHeight !== null || input.includes('飛') || input.includes('ジャンプ');
+            
+            if (game.currentStage === 1) {
+                if (isGoodPrompt) {
+                    blocksToAdd = [
+                        { type: 'move_forward', value: 250 },
+                        { type: 'jump', value: userHeight || 80 },
+                        { type: 'move_forward', value: 150 }
+                    ];
+                    game.log(`AI: いわを とびこえるように ならべてみるね！`);
+                } else {
+                    blocksToAdd = [
+                        { type: 'move_forward', value: 100 }, { type: 'jump', value: 30 }, { type: 'move_forward', value: 50 }
+                    ];
+                    game.log('AI: よくわからないから、まずは ちいさく ジャンプしてみるね！');
+                }
+            } else if (game.currentStage === 2) {
+                if (isGoodPrompt) {
+                    blocksToAdd = [
+                        { type: 'move_forward', value: 50 },
+                        { type: 'jump', value: userHeight || 80 },
+                        { type: 'move_forward', value: 50 },
+                        { type: 'jump', value: userHeight || 80 },
+                        { type: 'move_forward', value: 150 }
+                    ];
+                    game.log(`AI: いわが ２つあるね！ ２かい ジャンプするように するよ！`);
+                } else {
+                    blocksToAdd = [
+                        { type: 'move_forward', value: 50 }, { type: 'jump', value: 80 }, { type: 'move_forward', value: 100 }
+                    ];
+                    game.log('AI: いわが １つだと おもって ならべちゃった💦');
+                }
+            } else if (game.currentStage === 3) {
+                if (isGoodPrompt) {
+                    blocksToAdd = [
+                        { type: 'move_forward', value: 200 },
+                        { type: 'jump', value: userHeight || 150 },
+                        { type: 'move_forward', value: 200 }
+                    ];
+                    game.log(`AI: たにを こえる おおジャンプを するよ！`);
+                } else {
+                    blocksToAdd = [
+                        { type: 'move_forward', value: 50 }, { type: 'jump', value: 80 }, { type: 'move_forward', value: 50 }
+                    ];
+                    game.log('AI: ジャンプの タイミングが あわないかも...？');
+                }
             }
 
             await this.placeBlocksSequentially(blocksToAdd);
             
-            game.updateBubble('できたよ！実行してみて！');
+            game.updateBubble('できたよ！「うごかす」を おしてみて！');
             this.isOperating = false;
         },
 
@@ -270,9 +379,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 newBlock.render();
                 newBlock.moveBy(startX, startY + currentOffset);
 
-                // 数値のセット (jumpの場合)
-                if (item.type === 'jump' && item.value !== undefined) {
-                    const input = newBlock.getInput('HEIGHT');
+                // 数値のセット (jump, move_forward 両方に対応)
+                if (item.value !== undefined) {
+                    const inputName = item.type === 'jump' ? 'HEIGHT' : 'DISTANCE';
+                    const input = newBlock.getInput(inputName);
                     if (input && input.connection) {
                         const shadow = input.connection.targetBlock();
                         if (shadow) {
@@ -351,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('生成されたコード:\n', code);
             
             if (!code.trim()) {
-                game.log('AI: 実行できるコードがないよ！ブロックを置いてみてね。');
+                game.log('AI: ブロックが ないよ！ ブロックを おいてね。');
                 return;
             }
 
@@ -368,6 +478,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 初期化時リセット
-    game.reset();
+    // ステージ選択ボタンの処理
+    const stageBtns = document.querySelectorAll('.stage-btn');
+    if (stageBtns.length > 0) {
+        stageBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const level = parseInt(e.target.getAttribute('data-stage'));
+                stageBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                game.loadStage(level);
+            });
+        });
+    }
+
+    // 初期化時
+    game.loadStage(1);
 });
