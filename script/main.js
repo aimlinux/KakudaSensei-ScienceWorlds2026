@@ -327,28 +327,27 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const stageData = game.stages[game.currentStage];
                 const prompt = `
-あなたはゲームのAIアシスタントです。ユーザーの指示に従って、キャラクターを動かすためのコマンドの配列（JSON）を生成してください。
+あなたはゲームのAIプログラマーです。ユーザーの指示と現在のステージ状況を分析し、キャラクターを操作するための正確なコマンドを生成してください。
 
-【ゲームのルール】
-- コマンドは 'move_forward' (値: 距離) または 'jump' (値: 高さ) の2種類のみです。
-- 'move_forward' のデフォルト値は 50、'jump' のデフォルト値は 80 です。
-- 障害物を越えるには、その障害物の手前まで移動してからジャンプする必要があります。
+【ゲームの仕様】
 - キャラクターの初期位置は x=20 です。
+- ゴール地点は x=550 付近です。
+- 障害物を越えるには、障害物の少し手前（x座標から-30程度）まで移動してからジャンプする必要があります。
+- 'stone'（岩）: ぶつからないようにジャンプします。高さ(value)は50以上必要で、余裕をもって80を推奨します。
+- 'hole'（穴）: 穴の幅(width)を飛び越える必要があります。幅より十分な距離を稼ぐため、100〜150程度の高さでジャンプしてください。
+- 利用可能なコマンド:
+  - 'move_forward' (value: 進むピクセル距離。デフォルト50)
+  - 'jump' (value: ジャンプの高さ。デフォルト80)
 
 【現在の状況】
-- ステージ: ${stageData.label}
-- 障害物の情報（x座標と幅）: ${JSON.stringify(stageData.obstacles)}
-- ユーザーの指示: "${input}"
+- ステージ名: ${stageData.label}
+- 障害物リスト (位置x, 幅width): ${JSON.stringify(stageData.obstacles)}
+- ユーザーからの指示: "${input}"
 
-【出力形式】
-必ず以下のようなJSONの配列のみを出力してください（Markdownのコードブロックは使用しないでください）。
-[
-  { "type": "move_forward", "value": 100 },
-  { "type": "jump", "value": 80 }
-]
+ユーザーの指示が曖昧な場合（例：「岩をよけて」）は、ステージ情報をもとに、障害物を正確に避けるコマンドを推論してください。具体的な数値が指示された場合はそれを優先してください。
 `;
 
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey}`, {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -356,8 +355,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
                         generationConfig: {
-                            temperature: 0.2,
-                            responseMimeType: "application/json"
+                            temperature: 0.1,
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT",
+                                properties: {
+                                    reasoning: {
+                                        type: "STRING",
+                                        description: "現在の状況とユーザーの指示をもとに、キャラクターがどう動くべきかの思考プロセスや理由"
+                                    },
+                                    commands: {
+                                        type: "ARRAY",
+                                        items: {
+                                            type: "OBJECT",
+                                            properties: {
+                                                type: {
+                                                    type: "STRING",
+                                                    enum: ["move_forward", "jump"]
+                                                },
+                                                value: {
+                                                    type: "INTEGER"
+                                                }
+                                            },
+                                            required: ["type", "value"]
+                                        }
+                                    }
+                                },
+                                required: ["reasoning", "commands"]
+                            }
                         }
                     })
                 });
@@ -370,11 +395,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const aiText = data.candidates[0].content.parts[0].text;
                 
                 try {
-                    blocksToAdd = JSON.parse(aiText);
+                    const parsed = JSON.parse(aiText);
+                    blocksToAdd = parsed.commands;
                     if (!Array.isArray(blocksToAdd)) {
                         blocksToAdd = [];
                     }
-                    game.log(`AI: ${blocksToAdd.length}つの ブロックを ならべるよ！`);
+                    
+                    // AIの思考プロセスをログに表示
+                    game.log(`AIの考え: ${parsed.reasoning}`);
+                    game.log(`AI: よし！ ${blocksToAdd.length}つの ブロックを ならべるよ！`);
+                    
                 } catch (parseError) {
                     console.error("JSON Parse Error:", parseError, aiText);
                     game.log('AI: ごめんね、うまく理解できなかったみたい💦');
