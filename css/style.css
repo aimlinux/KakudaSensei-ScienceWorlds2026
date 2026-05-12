@@ -78,11 +78,11 @@ main {
 }
 
 #blockly-div {
-    width: calc(100% - 640px - 340px);
+    width: calc(100% - 840px - 340px);
     height: 100%;
     position: absolute;
     top: 0;
-    left: 640px;
+    left: 840px;
 }
 
 #top-ui {
@@ -95,13 +95,14 @@ main {
     align-items: center;
     gap: 15px;
     z-index: 100;
-    pointer-events: none; /* 下のBlocklyを触れるように（子要素で戻す） */
+    pointer-events: none;
+    /* 下のBlocklyを触れるように（子要素で戻す） */
 }
 
 #preview-area {
     pointer-events: auto;
-    width: 600px;
-    height: 300px;
+    width: 800px;
+    height: 400px;
     background: rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -110,7 +111,8 @@ main {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    justify-content: flex-end; /* 地面を下に置く */
+    justify-content: flex-end;
+    /* 地面を下に置く */
     align-items: center;
     position: relative;
     overflow: hidden;
@@ -146,7 +148,8 @@ main {
 }
 
 #run-button {
-    pointer-events: auto; /* IMPORTANT: Override parent's pointer-events: none */
+    pointer-events: auto;
+    /* IMPORTANT: Override parent's pointer-events: none */
     padding: 12px 30px;
     font-size: 1.2rem;
     font-weight: bold;
@@ -254,7 +257,7 @@ main {
     background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(10px);
     border-radius: 20px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     padding: 20px;
@@ -282,15 +285,22 @@ main {
 }
 
 .log-entry {
-    background: rgba(0,0,0,0.05);
+    background: rgba(0, 0, 0, 0.05);
     padding: 8px 12px;
     border-radius: 10px;
     animation: fadeIn 0.3s ease-out;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 #ai-chara-container {
@@ -303,13 +313,20 @@ main {
 #ai-chara {
     width: 100px;
     height: auto;
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
     animation: floating 3s ease-in-out infinite;
 }
 
 @keyframes floating {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
 }
 
 .speech-bubble {
@@ -318,7 +335,7 @@ main {
     border-radius: 15px;
     font-size: 0.8rem;
     position: relative;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 /* Vibe Input */
@@ -372,15 +389,24 @@ main {
 #ai-hand {
     position: absolute;
     font-size: 50px;
-    display: none; /* 初期状態は非表示 */
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+    display: none;
+    /* 初期状態は非表示 */
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
     transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
 }
 
 @keyframes hand-grab {
-    0% { transform: scale(1); }
-    50% { transform: scale(0.8); }
-    100% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(0.8);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 .hand-grabbing {
@@ -392,7 +418,7 @@ main {
 }
 
 /* スマホ・タブレット向けレスポンシブ対応 */
-@media (max-width: 1100px) {
+@media (max-width: 1250px) {
     main {
         display: flex;
         flex-direction: column;
@@ -418,7 +444,8 @@ main {
         padding: 10px;
         box-sizing: border-box;
         order: 1;
-        pointer-events: auto; /* mainのflex内に配置されるため元に戻す */
+        pointer-events: auto;
+        /* mainのflex内に配置されるため元に戻す */
     }
 
     #preview-area {
@@ -431,7 +458,8 @@ main {
         height: 80px;
     }
 
-    #player, #goal {
+    #player,
+    #goal {
         font-size: 30px;
     }
 

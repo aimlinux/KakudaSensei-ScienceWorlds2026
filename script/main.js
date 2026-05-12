@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', () => {
         Blockly.svgResize(workspace);
     }, false);
-    
+
     // 初期化直後に一度リサイズイベントを発火させて枠にぴったりはめる
     Blockly.svgResize(workspace);
 
@@ -53,19 +53,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Custom Blocks Definition
     Blockly.Blocks['when_run'] = {
-        init: function() {
+        init: function () {
             this.appendDummyInput()
                 .appendField("🚩 が おされたとき");
             this.setNextStatement(true, null);
             this.setColour(60);
         }
     };
-    javascriptGenerator.forBlock['when_run'] = function(block, generator) {
-        return ''; 
+    javascriptGenerator.forBlock['when_run'] = function (block, generator) {
+        return '';
     };
 
     Blockly.Blocks['move_forward'] = {
-        init: function() {
+        init: function () {
             this.appendValueInput("DISTANCE")
                 .setCheck("Number")
                 .appendField("まえに すすむ");
@@ -74,13 +74,13 @@ document.addEventListener('DOMContentLoaded', () => {
             this.setColour(20);
         }
     };
-    javascriptGenerator.forBlock['move_forward'] = function(block, generator) {
+    javascriptGenerator.forBlock['move_forward'] = function (block, generator) {
         const distance = generator.valueToCode(block, 'DISTANCE', javascriptGenerator.ORDER_ATOMIC) || '50';
         return `await game.moveForward(${distance});\n`;
     };
 
     Blockly.Blocks['jump'] = {
-        init: function() {
+        init: function () {
             this.appendValueInput("HEIGHT")
                 .setCheck("Number")
                 .appendField("ジャンプ！ たかさ:");
@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.setColour(20);
         }
     };
-    javascriptGenerator.forBlock['jump'] = function(block, generator) {
+    javascriptGenerator.forBlock['jump'] = function (block, generator) {
         const height = generator.valueToCode(block, 'HEIGHT', javascriptGenerator.ORDER_ATOMIC) || '80';
         return `await game.jump(${height});\n`;
     };
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isJumping: false,
         jumpHeight: 0,
         isGameOver: false,
-        goalX: 550,
+        goalX: 750,
         currentStage: 1,
 
         stages: {
@@ -124,8 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ]
             }
         },
-        
-        loadStage: function(level) {
+
+        loadStage: function (level) {
             this.currentStage = level;
             const stageData = this.stages[level];
             const labelEl = document.getElementById('current-stage-label');
@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.reset();
         },
 
-        reset: function() {
+        reset: function () {
             this.playerX = 20;
             this.isJumping = false;
             this.jumpHeight = 0;
@@ -165,11 +165,11 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateBubble('どうすればいいかな？');
         },
 
-        updateUI: function() {
+        updateUI: function () {
             const playerEl = document.getElementById('player');
             if (playerEl) {
                 playerEl.style.left = this.playerX + 'px';
-                
+
                 let reason = '';
                 if (this.isGameOver && this.playerX < this.goalX) {
                     const playerCenter = this.playerX + 20;
@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
-        log: function(msg) {
+        log: function (msg) {
             const logEl = document.getElementById('ai-log');
             if (logEl) {
                 const entry = document.createElement('div');
@@ -209,19 +209,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
-        updateBubble: function(msg) {
+        updateBubble: function (msg) {
             const bubbleEl = document.querySelector('.speech-bubble');
             if (bubbleEl) {
                 bubbleEl.textContent = msg;
             }
         },
 
-        moveForward: async function(distance_arg) {
+        moveForward: async function (distance_arg) {
             if (this.isGameOver) return;
             const dist = parseInt(distance_arg) || 50;
             this.updateBubble(`すすむよ！(${dist})`);
             this.log(`AI: まえに ${dist} すすむよ！`);
-            
+
             const steps = Math.max(1, Math.floor(dist / 5));
             const stepDist = dist / steps;
 
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!this.isGameOver) this.log('AI: いどう おわり。');
         },
 
-        jump: async function(height) {
+        jump: async function (height) {
             if (this.isGameOver) return;
             const h = parseInt(height) || 80;
             this.updateBubble(`ジャンプ！(たかさ:${h})`);
@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.isJumping = true;
             this.jumpHeight = h;
             this.updateUI();
-            
+
             // ジャンプ中の移動
             for (let i = 0; i < 10; i++) {
                 this.playerX += 15;
@@ -252,14 +252,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 await new Promise(r => setTimeout(r, 50));
                 if (this.isGameOver) break;
             }
-            
+
             this.isJumping = false;
             this.jumpHeight = 0;
             this.updateUI();
             if (!this.isGameOver) this.log('AI: ちゃくち せいこう！');
         },
 
-        checkCollision: function(currentJumpHeight = 0) {
+        checkCollision: function (currentJumpHeight = 0) {
             const playerCenter = this.playerX + 20;
             const stageData = this.stages[this.currentStage];
 
@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (this.playerX >= this.goalX && !this.isGameOver) {
                 this.log('AI: ゴール！だいせいこうだね！');
                 this.updateBubble('やったね！');
-                this.isGameOver = true; 
+                this.isGameOver = true;
                 const clearMsg = document.getElementById('clear-message');
                 if (clearMsg) {
                     clearMsg.classList.add('show');
@@ -316,14 +316,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             this.isOperating = true;
-            
+
             game.log(`あなた: "${input}"`);
             game.updateBubble('かんがえちゅう...');
-            
-            workspace.clear(); 
-            
+
+            workspace.clear();
+
             let blocksToAdd = [];
-            
+
             try {
                 const stageData = game.stages[game.currentStage];
                 const prompt = `
@@ -331,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 【ゲームの仕様】
 - キャラクターの初期位置は x=20 です。
-- ゴール地点は x=550 付近です。
+- ゴール地点は x=750 付近です。
 - 障害物を越えるには、障害物の少し手前（x座標から-30程度）まで移動してからジャンプする必要があります。
 - 'stone'（岩）: ぶつからないようにジャンプします。高さ(value)は50以上必要で、余裕をもって80を推奨します。
 - 'hole'（穴）: 穴の幅(width)を飛び越える必要があります。幅より十分な距離を稼ぐため、100〜150程度の高さでジャンプしてください。
@@ -393,18 +393,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const data = await response.json();
                 const aiText = data.candidates[0].content.parts[0].text;
-                
+
                 try {
                     const parsed = JSON.parse(aiText);
                     blocksToAdd = parsed.commands;
                     if (!Array.isArray(blocksToAdd)) {
                         blocksToAdd = [];
                     }
-                    
+
                     // AIの思考プロセスをログに表示
                     game.log(`AIの考え: ${parsed.reasoning}`);
                     game.log(`AI: よし！ ${blocksToAdd.length}つの ブロックを ならべるよ！`);
-                    
+
                 } catch (parseError) {
                     console.error("JSON Parse Error:", parseError, aiText);
                     game.log('AI: ごめんね、うまく理解できなかったみたい💦');
@@ -432,11 +432,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const hand = document.getElementById('ai-hand');
             const aiChara = document.getElementById('ai-chara');
             const blocklyDiv = document.getElementById('blockly-div');
-            
+
             hand.style.display = 'block';
-            
+
             const startX = blocklyDiv.offsetWidth / 2 - 100;
-            const startY = 380; 
+            const startY = 380;
 
             // 旗ブロック
             await this.animateHandTo(hand, aiChara, blocklyDiv, startX, startY);
@@ -444,13 +444,13 @@ document.addEventListener('DOMContentLoaded', () => {
             flagBlock.initSvg();
             flagBlock.render();
             flagBlock.moveBy(startX, startY);
-            
+
             let lastBlock = flagBlock;
             let currentOffset = 50;
 
             for (const item of blockData) {
                 await this.animateHandTo(hand, aiChara, blocklyDiv, startX, startY + currentOffset);
-                
+
                 const newBlock = workspace.newBlock(item.type);
                 newBlock.initSvg();
                 newBlock.render();
@@ -475,7 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 newBlock.previousConnection.connect(lastBlock.nextConnection);
-                
+
                 lastBlock = newBlock;
                 currentOffset += 60;
             }
@@ -530,13 +530,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (runButton) {
         runButton.addEventListener('click', async () => {
             game.reset();
-            
+
             // Javascriptコードを生成 
             // すべてのブロックのコードを生成
             const code = javascriptGenerator.workspaceToCode(workspace);
-            
+
             console.log('生成されたコード:\n', code);
-            
+
             if (!code.trim()) {
                 game.log('AI: ブロックが ないよ！ ブロックを おいてね。');
                 return;
