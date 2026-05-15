@@ -339,6 +339,11 @@ document.addEventListener('DOMContentLoaded', () => {
   - 'move_forward' (value: 進むピクセル距離。デフォルト50)
   - 'jump' (value: ジャンプの高さ。デフォルト80)
 
+【重要なルール】
+ユーザーが「ゴールして」「クリアして」「全部やって」のように、答えをAIに丸投げするような指示をしてきた場合は、**ブロック（コマンド）は生成せず（空の配列を出力）**、ユーザーが自分で考えるように促すヒントを \`messageToUser\` に出力してください。
+（例：「自分で考えてみてね！まずは目の前の障害物を越えるところから始めてみよう！」など）
+「岩をよけて」「前にすすんで」などの具体的な部分的な指示の場合は、適切にコマンドを生成し、\`messageToUser\` には「よし！ブロックを並べるよ！」などのメッセージを入れてください。
+
 【現在の状況】
 - ステージ名: ${stageData.label}
 - 障害物リスト (位置x, 幅width): ${JSON.stringify(stageData.obstacles)}
@@ -364,6 +369,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                         type: "STRING",
                                         description: "現在の状況とユーザーの指示をもとに、キャラクターがどう動くべきかの思考プロセスや理由"
                                     },
+                                    messageToUser: {
+                                        type: "STRING",
+                                        description: "ユーザーに直接伝えるメッセージ。丸投げの場合はヒント、そうでない場合はAIの反応など。"
+                                    },
                                     commands: {
                                         type: "ARRAY",
                                         items: {
@@ -381,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         }
                                     }
                                 },
-                                required: ["reasoning", "commands"]
+                                required: ["reasoning", "messageToUser", "commands"]
                             }
                         }
                     })
@@ -401,9 +410,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         blocksToAdd = [];
                     }
 
-                    // AIの思考プロセスをログに表示
+                    // AIの思考プロセスとメッセージをログに表示
                     game.log(`AIの考え: ${parsed.reasoning}`);
-                    game.log(`AI: よし！ ${blocksToAdd.length}つの ブロックを ならべるよ！`);
+                    
+                    const message = parsed.messageToUser || (blocksToAdd.length > 0 ? `よし！ ${blocksToAdd.length}つの ブロックを ならべるよ！` : '自分で考えてみてね！');
+                    game.log(`AI: ${message}`);
+                    game.updateBubble(message);
 
                 } catch (parseError) {
                     console.error("JSON Parse Error:", parseError, aiText);
@@ -422,8 +434,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (blocksToAdd.length > 0) {
                 await this.placeBlocksSequentially(blocksToAdd);
                 game.updateBubble('できたよ！「うごかす」を おしてみて！');
-            } else {
-                game.updateBubble('ブロックはないみたい');
             }
             this.isOperating = false;
         },
